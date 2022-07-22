@@ -5,7 +5,8 @@ export const useBankStore = defineStore({
   id: "bankState",
   state: () => ({
     isLogin: false,
-    baseUrl: "https://rakitin.herokuapp.com",
+    // baseUrl: "https://rakitin.herokuapp.com",
+    baseUrl: "http://localhost:3000",
     product: [],
     vga: [],
     psu: [],
@@ -19,6 +20,7 @@ export const useBankStore = defineStore({
     city: [],
     shippingCost: [],
     shippingDay: [],
+    isCalculateShippingCost: false,
   }),
   getters: {},
   actions: {
@@ -43,7 +45,7 @@ export const useBankStore = defineStore({
           password: credential.password,
         });
 
-        swal("Good job!", "You clicked the button!", "success");
+        swal("Good job!", "Register Succesfull!", "success");
         this.fetchProduct();
         this.router.push("/login");
       } catch (error) {
@@ -61,6 +63,7 @@ export const useBankStore = defineStore({
         localStorage.setItem("id", response.data.id);
         this.isLogin = true;
         this.fetchProduct();
+        this.myOrder();
         swal("Good job!", "You successfully login!", "success");
         this.router.push("/");
       } catch (error) {
@@ -102,7 +105,6 @@ export const useBankStore = defineStore({
             access_token: localStorage.getItem("access_token"),
           },
         });
-        // console.log(response);
         this.myOrderList = response.data;
       } catch (error) {
         console.log(error);
@@ -134,23 +136,67 @@ export const useBankStore = defineStore({
       }
     },
 
-    async deleteMyOrder(id) {
+    async changeStatus(id, status) {
+      this.router.push("/myorder");
+      swal("Good job!", "Thanks for confirming, enjoy your PC!", "success");
+      this.myOrder();
       try {
-        await axios.delete(this.baseUrl + `/myorder/${id}`, {
-          headers: {
-            access_token: localStorage.getItem("access_token"),
+        const response = await axios.patch(
+          this.baseUrl + `/myorder/status/${id}`,
+          {
+            status: status,
           },
-        });
-        this.router.push("/build");
-        console.log("sss");
-        // this.myOrder();
-        swal("Good job!", "You successfully delete unused order!", "success");
+          {
+            headers: {
+              access_token: localStorage.getItem("access_token"),
+            },
+          }
+        );
         // this.router.push("/myorder");
-        console.log("berhasil delete", id);
+        // this.myOrder();
       } catch (error) {
         console.log(error);
       }
     },
+
+    async deleteMyOrder(id) {
+      this.router.push("/myorder");
+      this.myOrder();
+
+      swal("Good job!", "You successfully delete unused build!", "success");
+      try {
+        const response = await axios.delete(this.baseUrl + `/myorder/${id}`, {
+          headers: {
+            access_token: localStorage.getItem("access_token"),
+          },
+        });
+        console.log("sss", response);
+        console.log("berhasil delete kebawah", id);
+        this.router.push("/myorder");
+        this.myOrder();
+      } catch (error) {
+        console.log(error);
+        console.log("asdasd");
+      }
+    },
+
+    // deleteMyOrder(id) {
+    //   console.log(id);
+    //   axios({
+    //     url: this.baseUrl + `/myorder/${id}`,
+    //     method: "delete",
+    //     headers: {
+    //       access_token: localStorage.getItem("access_token"),
+    //     },
+    //   })
+    //     .then((res) => {
+    //       console.log(res);
+    //       console.log("berhasil");
+    //     })
+    //     .catch((err) => {
+    //       console.log(err);
+    //     });
+    // },
 
     async getCity() {
       try {
@@ -196,6 +242,7 @@ export const useBankStore = defineStore({
         );
         this.shippingCost = response.data.data.shipping[0].cost[0].value;
         this.shippingDay = response.data.data.shipping[0].cost[0].etd;
+        this.isCalculateShippingCost = true;
         swal(
           "Total Shipping Cost",
           `${
@@ -209,11 +256,12 @@ export const useBankStore = defineStore({
           "success"
         );
       } catch (error) {
+        swal("Noo!", "Sorry we cant reach this city, try another...", "error");
         console.log(error);
       }
     },
 
-    async paymentHandler(price) {
+    async paymentHandler(price, id) {
       try {
         const response = await axios.post(
           this.baseUrl + "/payment",
@@ -225,15 +273,39 @@ export const useBankStore = defineStore({
           }
         );
 
+        var yuk = this;
         window.snap.pay(response.data.token, {
+          onSuccess(result) {
+            yuk.changeStatus(id, "Shipment");
+            yuk.myOrder();
+            yuk.router.push("/myorder");
+            swal(
+              "Gotchaaaa!",
+              "We will deliver your PC shortly, the status should be 'Shipment' now",
+              "success"
+            );
+          },
           onPending(result) {
-            this.router.push("/myorder");
+            yuk.router.push("/myorder");
+            swal(
+              "Noo!",
+              "You cancel payment, please proceed again later..",
+              "error"
+            );
+            yuk.isCalculateShippingCost = false;
+            yuk.myOrder();
           },
           onError(result) {
-            this.router.push("/myorder");
+            yuk.router.push("/");
+            console.log("onError");
           },
           onClose(result) {
-            this.router.push("/myorder");
+            swal(
+              "Noo!",
+              "You cancel payment, please proceed again later..",
+              "error"
+            );
+            yuk.router.push("/myorder");
           },
         });
       } catch (error) {
@@ -253,10 +325,6 @@ export const useBankStore = defineStore({
         this.fetchProduct();
         this.myOrder();
         this.getShowcase();
-        // this.myOrderById();
-        // this.getCity();
-        // this.getCost();
-        // this.getProvince();
       }
     },
   },

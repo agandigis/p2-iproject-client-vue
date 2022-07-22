@@ -20,6 +20,7 @@ export default {
       "city",
       "shippingCost",
       "shippingDay",
+      "isCalculateShippingCost",
     ]),
   },
   methods: {
@@ -33,15 +34,16 @@ export default {
     localGetCost() {
       this.getCost(this.shipping);
     },
-    localPaymentHandler() {
+    localPaymentHandler(id) {
       let price =
         this.myOrderSingle[0].Vga.price +
         this.myOrderSingle[0].Psu.price +
         this.myOrderSingle[0].Ram.price +
         this.myOrderSingle[0].Processor.price +
-        this.myOrderSingle[0].Ssd.price;
+        this.myOrderSingle[0].Ssd.price +
+        this.shippingCost;
 
-      this.paymentHandler(+price);
+      this.paymentHandler(+price, id);
     },
   },
   created() {
@@ -412,7 +414,7 @@ export default {
           </form>
           <div class="flex justify-between mt-10 mb-5">
             <span class="font-semibold text-sm uppercase">SHIPPING COST</span>
-            <span class="font-semibold text-sm">{{
+            <span v-if="shippingCost > 1" class="font-semibold text-sm">{{
               shippingCost
                 .toLocaleString("id-ID", {
                   style: "currency",
@@ -420,15 +422,18 @@ export default {
                 })
                 .split(",")[0]
             }}</span>
+            <span v-else class="font-semibold text-sm">-</span>
           </div>
           <div class="flex justify-between mt-10 mb-5">
             <span class="font-semibold text-sm uppercase">Duration</span>
-            <span class="font-semibold text-sm">{{ shippingDay }} Day</span>
+            <span v-if="shippingDay.length > 0" class="font-semibold text-sm"
+              >{{ shippingDay }} Day</span
+            >
+            <span v-else class="font-semibold text-sm">-</span>
           </div>
-
           <div class="border-t mt-8">
             <div
-              v-if="shippingCost"
+              v-if="shippingCost > 1"
               class="flex font-semibold justify-between py-6 text-sm uppercase"
             >
               <span>Total cost</span>
@@ -449,9 +454,31 @@ export default {
                   .split(",")[0]
               }}</span>
             </div>
+            <div
+              v-else
+              class="flex font-semibold justify-between py-6 text-sm uppercase"
+            >
+              <span>Total cost</span>
+
+              <span>{{
+                (
+                  myOrderSingle[0].Vga.price +
+                  myOrderSingle[0].Psu.price +
+                  myOrderSingle[0].Ram.price +
+                  myOrderSingle[0].Processor.price +
+                  myOrderSingle[0].Ssd.price
+                )
+                  .toLocaleString("id-ID", {
+                    style: "currency",
+                    currency: "IDR",
+                  })
+                  .split(",")[0]
+              }}</span>
+            </div>
+
             <button
               id="pay-button"
-              @click.prevent="localPaymentHandler"
+              @click.prevent="localPaymentHandler(myOrderSingle[0].id)"
               class="bg-indigo-500 font-semibold hover:bg-indigo-600 py-3 text-sm text-white uppercase w-full"
             >
               Checkout
